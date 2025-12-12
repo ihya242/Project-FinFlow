@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
-import 'home_screen.dart';
-import 'statistics_screen.dart';
-import 'add_transaction_screen.dart'; // <--- JANGAN LUPA IMPORT INI
 import 'package:provider/provider.dart';
 import '../providers/money_provider.dart';
-import 'budget_cards_screen.dart';
+
+// IMPORT HALAMAN-HALAMAN KITA
+import 'home_screen.dart';
+import 'statistics_screen.dart';
+import 'add_transaction_screen.dart';
+import 'salary_control_screen.dart'; // <--- INI PENTING! (Kontrol Gaji)
 import 'profile_screen.dart';
 
 class MainScreen extends StatefulWidget {
@@ -17,17 +19,19 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
 
+  // DAFTAR HALAMAN (Harus urut sesuai Ikon di bawah)
   final List<Widget> _pages = [
-    const HomeScreen(),
-    const StatisticsScreen(),
-    const Center(child: Text("Menu Tambah")), // Placeholder (gak akan tampil)
-    const BudgetCardsScreen(),
-    const ProfileScreen(),
+    const HomeScreen(), // Index 0: Home
+    const StatisticsScreen(), // Index 1: Analisa (Grafik)
+    const SizedBox(), // Index 2: Kosong (Karena tombol tengah melayang)
+    const SalaryControlScreen(), // Index 3: Kontrol Gaji (Ganti BudgetCards jadi ini)
+    const ProfileScreen(), // Index 4: Profil
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // IndexedStack bikin halaman gak ngerestart pas pindah tab (PENTING!)
       body: IndexedStack(index: _selectedIndex, children: _pages),
 
       bottomNavigationBar: Container(
@@ -55,9 +59,9 @@ class _MainScreenState extends State<MainScreen> {
             unselectedItemColor: Colors.grey,
             currentIndex: _selectedIndex,
             onTap: (index) {
+              // LOGIKA TOMBOL TENGAH (ADD)
               if (index == 2) {
                 // 👮‍♂️ SATPAM CEK DOMPET
-                // Kita intip provider (listen: false karena cuma mau cek sekali, gak perlu update UI)
                 final provider = Provider.of<MoneyProvider>(
                   context,
                   listen: false,
@@ -74,7 +78,7 @@ class _MainScreenState extends State<MainScreen> {
                     ),
                   );
                 } else {
-                  // LOGIKA BARU: BUKA HALAMAN TAMBAH TRANSAKSI 🚀
+                  // BUKA HALAMAN ADD
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -83,22 +87,27 @@ class _MainScreenState extends State<MainScreen> {
                   );
                 }
               } else {
+                // PINDAH HALAMAN BIASA
                 setState(() => _selectedIndex = index);
               }
             },
             items: [
+              // 0. HOME
               const BottomNavigationBarItem(
                 icon: Icon(Icons.home_filled),
                 label: 'Home',
               ),
+
+              // 1. STATISTIK (Grafik)
               const BottomNavigationBarItem(
                 icon: Icon(Icons.bar_chart_rounded),
                 label: 'Stats',
               ),
-              // Tombol Tengah Cantik
+
+              // 2. TOMBOL TENGAH (ADD)
               BottomNavigationBarItem(
                 icon: Container(
-                  padding: const EdgeInsets.all(12), // Gedein dikit
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: LinearGradient(
@@ -127,10 +136,14 @@ class _MainScreenState extends State<MainScreen> {
                 ),
                 label: 'Add',
               ),
+
+              // 3. KONTROL GAJI (Cards)
               const BottomNavigationBarItem(
                 icon: Icon(Icons.credit_card_rounded),
-                label: 'Cards',
+                label: 'Cards', // Ini akan membuka SalaryControlScreen
               ),
+
+              // 4. PROFILE
               const BottomNavigationBarItem(
                 icon: Icon(Icons.person_rounded),
                 label: 'Profile',

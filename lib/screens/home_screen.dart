@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
+import '../utils/app_format.dart'; // <--- IMPORT UTILS KITA 🛠️
 import '../providers/money_provider.dart';
 import 'add_wallet_screen.dart';
 import 'wallet_detail_screen.dart';
@@ -11,20 +11,57 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = Provider.of<MoneyProvider>(context);
-    final currencyFormatter = NumberFormat.currency(
-      locale: 'id_ID',
-      symbol: 'Rp ',
-      decimalDigits: 0,
-    );
+    // final currencyFormatter = ... (HAPUS YANG LAMA)
 
     return Scaffold(
-      // AppBar Transparan
+      backgroundColor: const Color(
+        0xFF121212,
+      ), // Pastikan background hitam pekat
+      // --- HEADER CYAN NEON (TETAP SAMA) ---
       appBar: AppBar(
-        title: const Text("Dompet Digital 💳"),
-        centerTitle: false,
+        title: Text(
+          "DOMPET ${provider.userName.toUpperCase()}",
+        ), // Pakai uppercase biar gagah
+        centerTitle: true,
         backgroundColor: Colors.transparent,
         elevation: 0,
-        // Actions sudah dihapus
+
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.cyanAccent.withValues(alpha: 0.15),
+                Colors.transparent,
+              ],
+            ),
+          ),
+        ),
+
+        titleTextStyle: TextStyle(
+          fontFamily: 'Roboto',
+          fontWeight: FontWeight.w900,
+          fontSize: 20,
+          letterSpacing: 2,
+          color: Colors.white,
+          shadows: [
+            BoxShadow(
+              color: Colors.cyanAccent.withValues(alpha: 0.8),
+              blurRadius: 15,
+              spreadRadius: 1,
+            ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(
+              Icons.notifications_none_rounded,
+              color: Colors.cyanAccent,
+            ),
+            onPressed: () {},
+          ),
+        ],
       ),
 
       body: SingleChildScrollView(
@@ -32,7 +69,7 @@ class HomeScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // HEADER KECIL: Tombol Tambah Dompet
+            // HEADER SECTION
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -41,7 +78,7 @@ class HomeScreen extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white, // <--- SUDAH DIGANTI PUTIH 🤍
+                    color: Colors.white,
                   ),
                 ),
                 TextButton.icon(
@@ -56,7 +93,7 @@ class HomeScreen extends StatelessWidget {
                   icon: Icon(
                     Icons.add_circle,
                     color: Theme.of(context).colorScheme.primary,
-                  ), // Pakai warna tema
+                  ),
                   label: Text(
                     "Tambah Baru",
                     style: TextStyle(
@@ -69,7 +106,7 @@ class HomeScreen extends StatelessWidget {
 
             const SizedBox(height: 10),
 
-            // --- 1. DAFTAR DOMPET (STACKING) ---
+            // --- 1. DAFTAR DOMPET ---
             provider.wallets.isEmpty
                 ? _buildEmptyState(context)
                 : ListView.builder(
@@ -80,6 +117,8 @@ class HomeScreen extends StatelessWidget {
                       final wallet = provider.wallets[index];
                       return Card(
                         margin: const EdgeInsets.only(bottom: 16),
+                        color: Colors.transparent,
+                        elevation: 0,
                         child: InkWell(
                           borderRadius: BorderRadius.circular(24),
                           onTap: () {
@@ -93,21 +132,31 @@ class HomeScreen extends StatelessWidget {
                           },
                           child: Container(
                             padding: const EdgeInsets.all(20),
+                            // 👇 DEKORASI INI DISAMAKAN DENGAN WALLET DETAIL
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(24),
-                              // Gradasi Gelap Elegan
-                              gradient: LinearGradient(
+                              gradient: const LinearGradient(
                                 colors: [
-                                  const Color(0xFF2C2C2C),
-                                  const Color(0xFF1F1F1F),
-                                ],
+                                  Color(0xFF2C2C2C),
+                                  Colors.black,
+                                ], // Hitam ke Abu Gelap
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
                               ),
                               border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.1),
-                              ),
+                                color: Colors.cyanAccent.withValues(alpha: 0.3),
+                              ), // Border Cyan Tipis
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.cyanAccent.withValues(
+                                    alpha: 0.1,
+                                  ),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 5),
+                                ),
+                              ],
                             ),
+                            // ------------------------------------------------
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -115,9 +164,9 @@ class HomeScreen extends StatelessWidget {
                                   children: [
                                     const Icon(
                                       Icons.sim_card_rounded,
-                                      color: Colors.amber,
+                                      color: Colors.cyanAccent,
                                       size: 32,
-                                    ),
+                                    ), // Icon Cyan
                                     const SizedBox(width: 12),
                                     Expanded(
                                       child: Text(
@@ -145,8 +194,10 @@ class HomeScreen extends StatelessWidget {
                                     fontSize: 12,
                                   ),
                                 ),
+
+                                // PAKAI UTILS
                                 Text(
-                                  currencyFormatter.format(wallet.balance),
+                                  AppFormat.currency(wallet.balance),
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 28,
@@ -219,12 +270,19 @@ class HomeScreen extends StatelessWidget {
                             color: Colors.white,
                           ),
                         ),
+
+                        // PAKAI UTILS TANGGAL 👇
                         subtitle: Text(
-                          tx.description,
-                          style: const TextStyle(color: Colors.grey),
+                          AppFormat.dateShort(tx.date),
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            fontSize: 12,
+                          ),
                         ),
+
+                        // PAKAI UTILS UANG 👇
                         trailing: Text(
-                          currencyFormatter.format(tx.amount),
+                          AppFormat.currency(tx.amount),
                           style: TextStyle(
                             color: tx.type == 'income'
                                 ? Colors.greenAccent
@@ -240,7 +298,6 @@ class HomeScreen extends StatelessWidget {
           ],
         ),
       ),
-      // FLOATING ACTION BUTTON SUDAH DIHAPUS 🗑️
     );
   }
 

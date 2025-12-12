@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
+import '../utils/app_format.dart';
 import '../providers/money_provider.dart';
 import '../models/wallet.dart';
+import '../models/transaction_template.dart';
 
 class AddTransactionScreen extends StatefulWidget {
   const AddTransactionScreen({super.key});
@@ -18,44 +19,64 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   String _type = 'expense';
   Wallet? _selectedWallet;
   DateTime _selectedDate = DateTime.now();
-
-  // DAFTAR TEMPLATE (Update Terbaru)
-  final List<String> _descriptionTemplates = [
-    "Gaji per Month (G/M)", // <--- INI KHUSUS GAJI
-    "Needs Monthly",
-    "Invest Gold",
-    "Makan & Minum",
-    "Transport",
-    "Topup E-Wallet",
-    "Lainnya",
-  ];
-
-  String? _selectedTemplate;
+  TransactionTemplate? _selectedTemplate;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final provider = Provider.of<MoneyProvider>(context, listen: false);
     final wallets = context.watch<MoneyProvider>().wallets;
+    final templates = context.watch<MoneyProvider>().templates;
 
     if (_selectedWallet == null && wallets.isNotEmpty) {
       _selectedWallet = wallets.first;
     }
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+      backgroundColor: const Color(0xFF121212),
+
       appBar: AppBar(
-        title: const Text("Catat Transaksi"),
+        title: const Text("CATAT TRANSAKSI"),
         backgroundColor: Colors.transparent,
         centerTitle: true,
         elevation: 0,
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.pinkAccent.withValues(alpha: 0.15),
+                Colors.transparent,
+              ],
+            ),
+          ),
+        ),
+        titleTextStyle: TextStyle(
+          fontFamily: 'Roboto',
+          fontWeight: FontWeight.w900,
+          fontSize: 20,
+          letterSpacing: 2,
+          color: Colors.white,
+          shadows: [
+            BoxShadow(
+              color: Colors.pinkAccent.withValues(alpha: 0.8),
+              blurRadius: 15,
+              spreadRadius: 1,
+            ),
+          ],
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.close_rounded, color: Colors.pinkAccent),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
+
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // 1. SWITCH NEON
+            // 0. SWITCH (Tetap di paling atas biar jelas tipe-nya)
             Container(
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
@@ -67,12 +88,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 children: [
                   _buildSwitchButton(
                     'expense',
-                    "Pengeluaran 💸",
+                    "PENGELUARAN 💸",
                     Colors.redAccent,
                   ),
                   _buildSwitchButton(
                     'income',
-                    "Pemasukan 💰",
+                    "PEMASUKAN 💰",
                     Colors.greenAccent,
                   ),
                 ],
@@ -81,39 +102,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
             const SizedBox(height: 30),
 
-            // 2. INPUT NOMINAL
-            const Text(
-              "Jumlah Uang",
-              style: TextStyle(color: Colors.grey, fontSize: 12),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _amountController,
-              keyboardType: TextInputType.number,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-              ),
-              decoration: InputDecoration(
-                prefixText: "Rp ",
-                prefixStyle: TextStyle(
-                  color: _type == 'income'
-                      ? Colors.greenAccent
-                      : Colors.redAccent,
-                  fontSize: 32,
-                ),
-                hintText: "0",
-                hintStyle: TextStyle(color: Colors.grey.shade800, fontSize: 32),
-                border: InputBorder.none,
-              ),
-            ),
-            const Divider(color: Colors.white24),
-
-            const SizedBox(height: 30),
-
-            // 3. PILIH DOMPET
-            _buildLabel("Dompet Sumber"),
+            // 1. PILIH DOMPET (Urutan Pertama)
+            _buildLabel("DOMPET SUMBER"),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               decoration: BoxDecoration(
@@ -147,7 +137,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                           ),
                           const Spacer(),
                           Text(
-                            NumberFormat.compact().format(w.balance),
+                            AppFormat.compactCurrency(w.balance),
                             style: const TextStyle(
                               color: Colors.grey,
                               fontSize: 12,
@@ -164,8 +154,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
             const SizedBox(height: 20),
 
-            // 4. PILIH TANGGAL
-            _buildLabel("Tanggal"),
+            // 2. PILIH TANGGAL (Urutan Kedua)
+            _buildLabel("TANGGAL"),
             InkWell(
               onTap: () async {
                 final picked = await showDatePicker(
@@ -175,8 +165,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   lastDate: DateTime.now(),
                   builder: (context, child) => Theme(
                     data: ThemeData.dark().copyWith(
-                      colorScheme: ColorScheme.dark(
-                        primary: theme.colorScheme.primary,
+                      colorScheme: const ColorScheme.dark(
+                        primary: Colors.pinkAccent,
                       ),
                     ),
                     child: child!,
@@ -201,10 +191,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                     ),
                     const SizedBox(width: 12),
                     Text(
-                      DateFormat(
-                        'EEEE, dd MMMM yyyy',
-                        'id_ID',
-                      ).format(_selectedDate),
+                      AppFormat.dateFull(_selectedDate),
                       style: const TextStyle(color: Colors.white),
                     ),
                   ],
@@ -212,11 +199,73 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               ),
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 30), // Jarak agak jauh buat pemisah
+            // 3. INPUT NOMINAL (Urutan Ketiga - Glowing Besar)
+            Text(
+              "JUMLAH UANG (NOMINAL)",
+              style: TextStyle(
+                color: _type == 'income'
+                    ? Colors.greenAccent
+                    : Colors.redAccent,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.5,
+              ),
+              textAlign: TextAlign.left, // Balikin ke kiri biar rapi
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _amountController,
+              keyboardType: TextInputType.number,
+              // textAlign: TextAlign.center, // Boleh Center atau Left, kita coba Left biar urut
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 32, // Sedikit diperkecil biar muat
+                fontWeight: FontWeight.bold,
+                shadows: [
+                  BoxShadow(
+                    color:
+                        (_type == 'income'
+                                ? Colors.greenAccent
+                                : Colors.redAccent)
+                            .withValues(alpha: 0.5),
+                    blurRadius: 20,
+                  ),
+                ],
+              ),
+              decoration: InputDecoration(
+                prefixText: "Rp ",
+                prefixStyle: TextStyle(
+                  color: _type == 'income'
+                      ? Colors.greenAccent
+                      : Colors.redAccent,
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                ),
+                hintText: "0",
+                hintStyle: TextStyle(color: Colors.grey.shade800, fontSize: 32),
+                enabledBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(
+                    color: Colors.white.withValues(alpha: 0.1),
+                  ),
+                ),
+                focusedBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(
+                    color: _type == 'income'
+                        ? Colors.greenAccent
+                        : Colors.redAccent,
+                  ),
+                ),
+                contentPadding: const EdgeInsets.symmetric(vertical: 10),
+              ),
+            ),
 
-            // 5. INPUT KETERANGAN (Updated Templates)
-            _buildLabel("Keterangan / Kategori"),
+            const SizedBox(height: 30),
 
+            // 4. KETERANGAN (Urutan Keempat)
+            _buildLabel("KETERANGAN"),
+
+            // Dropdown Template
             Container(
               margin: const EdgeInsets.only(bottom: 10),
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -225,7 +274,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
+                child: DropdownButton<TransactionTemplate>(
                   value: _selectedTemplate,
                   hint: const Text(
                     "Pilih Template Cepat",
@@ -233,25 +282,36 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   ),
                   isExpanded: true,
                   dropdownColor: const Color(0xFF2C2C2C),
-                  items: _descriptionTemplates.map((String item) {
+                  items: templates.map((TransactionTemplate item) {
                     return DropdownMenuItem(
                       value: item,
-                      child: Text(
-                        item,
-                        style: const TextStyle(color: Colors.white),
+                      child: Row(
+                        children: [
+                          Text(
+                            item.title,
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                          const Spacer(),
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: item.type == 'income'
+                                  ? Colors.green
+                                  : Colors.red,
+                            ),
+                          ),
+                        ],
                       ),
                     );
                   }).toList(),
-                  onChanged: (val) {
+                  onChanged: (TransactionTemplate? val) {
                     setState(() {
                       _selectedTemplate = val;
-                      if (val != null && !val.contains("Lainnya")) {
-                        _descController.text = val;
-
-                        // OTOMATIS GANTI TIPE KE PEMASUKAN KALAU PILIH GAJI
-                        if (val.toLowerCase().contains("gaji")) {
-                          _type = 'income';
-                        }
+                      if (val != null) {
+                        _descController.text = val.title;
+                        _type = val.type; // Auto ganti tipe
                       } else {
                         _descController.clear();
                       }
@@ -261,6 +321,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               ),
             ),
 
+            // Input Manual
             Container(
               decoration: BoxDecoration(
                 color: const Color(0xFF1E1E1E),
@@ -271,7 +332,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 controller: _descController,
                 style: const TextStyle(color: Colors.white),
                 decoration: const InputDecoration(
-                  hintText: "Atau ketik manual: 'G/M'",
+                  hintText: "Atau ketik manual...",
                   hintStyle: TextStyle(color: Colors.grey),
                   border: InputBorder.none,
                   contentPadding: EdgeInsets.all(16),
@@ -283,24 +344,46 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             const SizedBox(height: 40),
 
             // TOMBOL SIMPAN
-            SizedBox(
-              width: double.infinity,
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                gradient: LinearGradient(
+                  colors: _type == 'income'
+                      ? [Colors.greenAccent, Colors.teal]
+                      : [Colors.redAccent, Colors.orangeAccent],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color:
+                        (_type == 'income'
+                                ? Colors.greenAccent
+                                : Colors.redAccent)
+                            .withValues(alpha: 0.4),
+                    blurRadius: 15,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _type == 'income'
-                      ? Colors.greenAccent.shade700
-                      : Colors.redAccent.shade700,
-                  foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 18),
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  elevation: 8,
                 ),
                 onPressed: () => _processTransaction(provider),
                 child: const Text(
                   "SIMPAN SEKARANG",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: 1,
+                  ),
                 ),
               ),
             ),
@@ -316,9 +399,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       child: Text(
         text,
         style: const TextStyle(
-          color: Colors.grey,
-          fontSize: 12,
+          color: Colors.pinkAccent,
+          fontSize: 10,
           fontWeight: FontWeight.bold,
+          letterSpacing: 1.2,
         ),
       ),
     );
@@ -341,6 +425,14 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               color: isSelected ? activeColor : Colors.transparent,
               width: 1,
             ),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: activeColor.withValues(alpha: 0.2),
+                      blurRadius: 10,
+                    ),
+                  ]
+                : [],
           ),
           child: Text(
             label,
@@ -364,85 +456,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       );
       return;
     }
-
-    double amount = double.tryParse(_amountController.text) ?? 0;
-    String desc = _descController.text
-        .toLowerCase(); // Ubah ke huruf kecil biar gampang cek
-
-    // LOGIKA BARU DETEKSI GAJI (G/M atau GAJI)
-    if (_type == 'income' && (desc.contains('gaji') || desc.contains('g/m'))) {
-      _showSalaryAllocationDialog(amount, provider);
-    } else {
-      _saveToDatabase(provider);
-    }
-  }
-
-  void _showSalaryAllocationDialog(double totalGaji, MoneyProvider provider) {
-    double danaDarurat = totalGaji * 0.30;
-    double investEmas = totalGaji * 0.25;
-    double sehariHari = totalGaji * 0.45;
-
-    final currency = NumberFormat.currency(
-      locale: 'id_ID',
-      symbol: 'Rp ',
-      decimalDigits: 0,
-    );
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E1E),
-        title: const Text(
-          "🎉 Wah Gaji Masuk!",
-          style: TextStyle(color: Colors.white),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              "Sesuai instruksi Ihya (G/M), ini alokasinya:",
-              style: TextStyle(color: Colors.grey),
-            ),
-            const Divider(color: Colors.white24),
-            _allocationRow("🛡️ Safe (30%)", danaDarurat, currency),
-            _allocationRow("🥇 Invest (25%)", investEmas, currency),
-            _allocationRow("🍜 Needs (45%)", sehariHari, currency),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _saveToDatabase(provider);
-            },
-            child: const Text("SIAP LAKSANAKAN!"),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _allocationRow(String title, double amount, NumberFormat fmt) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(fontSize: 12, color: Colors.white70),
-          ),
-          Text(
-            fmt.format(amount),
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-        ],
-      ),
-    );
+    _saveToDatabase(provider);
   }
 
   void _saveToDatabase(MoneyProvider provider) async {
