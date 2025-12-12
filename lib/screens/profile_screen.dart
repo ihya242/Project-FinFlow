@@ -3,6 +3,8 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 import '../providers/money_provider.dart';
 import 'auth_screen.dart';
+import 'manage_templates_screen.dart';
+import 'welcome_screen.dart'; // Import Welcome Screen buat Logout/Reset
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -12,127 +14,177 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  String _userName = "Ihya-kun";
-
-  @override
-  void initState() {
-    super.initState();
-    _loadProfile();
-  }
-
-  void _loadProfile() async {
-    var box = await Hive.openBox('settings');
-    // Cek apakah Halaman ini (State) masih ada?
-    if (!mounted) return;
-    setState(() {
-      _userName = box.get('user_name', defaultValue: 'Ihya-kun');
-    });
-  }
-
-  void _updateName(String newName) async {
-    var box = await Hive.openBox('settings');
-    await box.put('user_name', newName);
-
-    // Cek apakah Halaman ini (State) masih ada?
-    if (!mounted) return;
-    setState(() => _userName = newName);
-  }
-
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final userName = context.watch<MoneyProvider>().userName;
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+      backgroundColor: const Color(0xFF121212), // Background Hitam Pekat
       appBar: AppBar(
-        title: const Text("Pengaturan"),
+        title: const Text("IDENTITY"),
+        centerTitle: true,
         backgroundColor: Colors.transparent,
         elevation: 0,
-        centerTitle: true,
+
+        // ✨ DEKORASI GOLD GRADIENT ✨
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.amber.withValues(alpha: 0.15), // Emas Transparan
+                Colors.transparent,
+              ],
+            ),
+          ),
+        ),
+        // ✨ TEKS GLOWING EMAS ✨
+        titleTextStyle: TextStyle(
+          fontFamily: 'Roboto', // Atau font bawaan
+          fontWeight: FontWeight.w900,
+          fontSize: 20,
+          letterSpacing: 2,
+          color: Colors.white,
+          shadows: [
+            BoxShadow(
+              color: Colors.amber.withValues(alpha: 0.8),
+              blurRadius: 15,
+              spreadRadius: 1,
+            ),
+          ],
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            // --- 1. HEADER PROFIL ---
-            const SizedBox(height: 20),
+            // --- 1. AVATAR GLOWING ---
+            const SizedBox(height: 10),
             Container(
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(color: theme.colorScheme.primary, width: 2),
+                border: Border.all(color: Colors.amber, width: 2),
                 boxShadow: [
                   BoxShadow(
-                    color: theme.colorScheme.primary.withValues(alpha: 0.3),
+                    color: Colors.amber.withValues(alpha: 0.3),
                     blurRadius: 20,
                   ),
                 ],
               ),
-              child: CircleAvatar(
+              child: const CircleAvatar(
                 radius: 50,
-                backgroundColor: const Color(0xFF2C2C2C),
-                child: Icon(
-                  Icons.person_rounded,
-                  size: 50,
-                  color: Colors.grey.shade400,
-                ),
+                backgroundColor: Color(0xFF1E1E1E),
+                child: Icon(Icons.person, size: 50, color: Colors.white),
               ),
             ),
-            const SizedBox(height: 15),
 
-            // Nama
+            const SizedBox(height: 25),
+
+            // --- 2. KOTAK NAMA USER (KAPSUL) ---
             GestureDetector(
               onTap: _showEditNameDialog,
               child: Container(
+                // Padding bikin kotaknya agak gendut & lega
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
+                  horizontal: 25,
+                  vertical: 12,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.05),
-                  borderRadius: BorderRadius.circular(12),
+                  color: const Color(0xFF1E1E1E), // Latar Abu Gelap
+                  borderRadius: BorderRadius.circular(30), // Sudut Membulat
+                  border: Border.all(color: Colors.white10), // Garis tipis
                 ),
                 child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize:
+                      MainAxisSize.min, // Biar kotaknya gak melebar full
                   children: [
                     Text(
-                      _userName,
+                      userName,
                       style: const TextStyle(
-                        fontSize: 24,
+                        fontSize: 20, // Ukuran Pas
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
                     ),
                     const SizedBox(width: 10),
-                    const Icon(
-                      Icons.edit_rounded,
-                      size: 16,
-                      color: Colors.grey,
-                    ),
+                    const Icon(Icons.edit, color: Colors.amber, size: 18),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 5),
-            const Text(
-              "Master of Coin 👑",
-              style: TextStyle(color: Colors.grey),
+
+            const SizedBox(height: 10),
+
+            // Julukan (Badge)
+            const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  "Master of Coin",
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 12,
+                    letterSpacing: 1,
+                  ),
+                ),
+                SizedBox(width: 5),
+                Text("👑", style: TextStyle(fontSize: 12)),
+              ],
             ),
 
             const SizedBox(height: 40),
 
-            // --- 2. MENU PENGATURAN ---
+            // --- 3. MENU LIST ---
             _buildSectionTitle("Keamanan"),
+
             _buildMenuTile(
               icon: Icons.lock_reset_rounded,
               title: "Reset PIN & Keamanan",
               subtitle: "Hapus PIN lama dan buat baru",
+              color: Colors.cyanAccent,
               onTap: () => _showResetPinDialog(),
             ),
 
             const SizedBox(height: 20),
+
             _buildSectionTitle("Data & Penyimpanan"),
+
+            _buildMenuTile(
+              icon: Icons.list_alt_rounded,
+              title: "Atur Template Transaksi",
+              subtitle: "Tambah atau hapus template otomatis",
+              color: Colors.greenAccent,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const ManageTemplatesScreen(),
+                  ),
+                );
+              },
+            ),
+
+            const SizedBox(height: 10),
+
+            // FITUR EXPORT (Next Update)
+            _buildMenuTile(
+              icon: Icons.file_download_outlined,
+              title: "Export ke Excel (CSV)",
+              subtitle: "Backup datamu ke file",
+              color: Colors.white,
+              onTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text("Fitur ini akan segera hadir, Sayang! 😉"),
+                  ),
+                );
+              },
+            ),
+
+            const SizedBox(height: 10),
+
             _buildMenuTile(
               icon: Icons.delete_forever_rounded,
               title: "Hapus Semua Data",
@@ -141,25 +193,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
               onTap: () => _showFactoryResetDialog(),
             ),
 
-            // ... Footer dll ...
+            // Footer
             const SizedBox(height: 40),
             const Divider(color: Colors.white10),
             const SizedBox(height: 20),
             const Text(
               "Money Tracker App v1.0",
-              style: TextStyle(color: Colors.grey),
+              style: TextStyle(color: Colors.grey, fontSize: 12),
             ),
             const Text(
               "Created with ❤️ by Ihya",
-              style: TextStyle(color: Colors.white30, fontSize: 12),
+              style: TextStyle(color: Colors.white30, fontSize: 10),
             ),
+            const SizedBox(height: 20),
           ],
         ),
       ),
     );
   }
 
-  // Widget Helper (Sama seperti sebelumnya)
+  // --- WIDGET HELPER ---
   Widget _buildSectionTitle(String title) {
     return Container(
       width: double.infinity,
@@ -168,9 +221,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         title.toUpperCase(),
         style: const TextStyle(
           color: Colors.grey,
-          fontSize: 12,
+          fontSize: 10,
           fontWeight: FontWeight.bold,
-          letterSpacing: 1.2,
+          letterSpacing: 1.5,
         ),
       ),
     );
@@ -181,7 +234,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required String title,
     required String subtitle,
     required VoidCallback onTap,
-    Color color = Colors.white,
+    required Color color, // Wajib isi warna biar variatif
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -196,26 +249,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
             color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(icon, color: color),
+          child: Icon(icon, color: color, size: 24),
         ),
         title: Text(
           title,
-          style: TextStyle(fontWeight: FontWeight.bold, color: color),
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
         ),
         subtitle: Text(
           subtitle,
-          style: const TextStyle(color: Colors.grey, fontSize: 12),
+          style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
         ),
-        trailing: const Icon(Icons.chevron_right_rounded, color: Colors.grey),
+        trailing: Icon(
+          Icons.chevron_right_rounded,
+          color: Colors.grey.shade800,
+        ),
         onTap: onTap,
       ),
     );
   }
 
-  // --- LOGIKA PERBAIKAN ---
+  // --- LOGIC DIALOG ---
 
   void _showEditNameDialog() {
-    TextEditingController controller = TextEditingController(text: _userName);
+    String currentName = Provider.of<MoneyProvider>(
+      context,
+      listen: false,
+    ).userName;
+    TextEditingController controller = TextEditingController(text: currentName);
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -231,23 +295,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
             hintText: "Nama barumu...",
             hintStyle: TextStyle(color: Colors.grey),
             enabledBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: Colors.grey),
+              borderSide: BorderSide(color: Colors.amber),
+            ),
+            focusedBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: Colors.amberAccent),
             ),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text("Batal"),
+            child: const Text("Batal", style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.amber),
             onPressed: () {
               if (controller.text.isNotEmpty) {
-                _updateName(controller.text);
+                Provider.of<MoneyProvider>(
+                  context,
+                  listen: false,
+                ).updateUserName(controller.text);
                 Navigator.pop(ctx);
               }
             },
-            child: const Text("Simpan"),
+            child: const Text(
+              "Simpan",
+              style: TextStyle(
+                color: Colors.black,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -261,26 +338,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
         backgroundColor: const Color(0xFF1E1E1E),
         title: const Text("Reset PIN?", style: TextStyle(color: Colors.white)),
         content: const Text(
-          "PIN dan data sidik jari akan dihapus. Kamu harus membuat PIN baru saat login berikutnya.",
+          "PIN dan data sidik jari akan dihapus. Kamu harus login ulang.",
           style: TextStyle(color: Colors.white70),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text("Batal"),
+            child: const Text("Batal", style: TextStyle(color: Colors.grey)),
           ),
           TextButton(
             onPressed: () async {
               var box = await Hive.openBox('settings');
               await box.delete('user_pin');
 
-              // 1. CEK KONTEK DIALOG DULU SEBELUM POP
               if (!ctx.mounted) return;
               Navigator.pop(ctx);
 
-              // 2. CEK KONTEK HALAMAN (State) SEBELUM PINDAH LAYAR
               if (!mounted) return;
-
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(builder: (_) => const AuthScreen()),
@@ -288,7 +362,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             },
             child: const Text(
               "Ya, Reset PIN",
-              style: TextStyle(color: Colors.amber),
+              style: TextStyle(color: Colors.cyanAccent),
             ),
           ),
         ],
@@ -301,39 +375,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF1E1E1E),
-        title: const Text(
-          "Hapus SEMUA Data?",
-          style: TextStyle(color: Colors.redAccent),
+        // FIX: Bungkus Text dengan Expanded biar gak nabrak kanan
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.redAccent),
+            SizedBox(width: 10),
+            Expanded(
+              // <--- INI JUARA PENYELAMATNYA 🦸‍♂️
+              child: Text(
+                "Hapus SEMUA Data?",
+                style: TextStyle(color: Colors.redAccent),
+                overflow: TextOverflow.visible, // Biar teks turun ke bawah
+              ),
+            ),
+          ],
         ),
-        content: const Text(
-          "⚠️ PERINGATAN KERAS:\nSemua dompet, transaksi, dan pengaturan akan dihapus PERMANEN.\n\nData tidak bisa dikembalikan. Yakin?",
-          style: TextStyle(color: Colors.white70),
+        // FIX: Bungkus Content dengan Scroll biar aman di layar pendek
+        content: const SingleChildScrollView(
+          child: Text(
+            "Dompet, transaksi, dan pengaturan akan dihapus PERMANEN.\nData tidak bisa dikembalikan. Yakin?",
+            style: TextStyle(color: Colors.white70),
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text("Batal"),
+            child: const Text("Batal", style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
             onPressed: () async {
-              // Reset di Provider
-              // Note: Pastikan di MoneyProvider fungsinya tidak pakai context, tapi notifyListeners
               await Provider.of<MoneyProvider>(
                 context,
                 listen: false,
               ).resetAllData();
 
-              // 1. CEK KONTEK DIALOG (ctx)
               if (!ctx.mounted) return;
               Navigator.pop(ctx);
 
-              // 2. CEK KONTEK HALAMAN (mounted)
               if (!mounted) return;
-
               Navigator.pushAndRemoveUntil(
                 context,
-                MaterialPageRoute(builder: (_) => const AuthScreen()),
+                MaterialPageRoute(builder: (_) => const WelcomeScreen()),
                 (route) => false,
               );
 
@@ -343,7 +426,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               );
             },
-            child: const Text("HAPUS SEMUANYA"),
+            child: const Text(
+              "HAPUS SEMUANYA",
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),

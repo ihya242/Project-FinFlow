@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:money_tracker/screens/welcome_screen.dart';
 import 'package:provider/provider.dart';
 // Import screen yang dibutuhkan saja
 import 'screens/auth_screen.dart';
 import 'models/transaction.dart';
 import 'models/wallet.dart';
+import 'models/transaction_template.dart';
 import 'providers/money_provider.dart';
 
 void main() async {
@@ -14,22 +16,31 @@ void main() async {
   await Hive.initFlutter();
   Hive.registerAdapter(TransactionAdapter());
   Hive.registerAdapter(WalletAdapter());
+  Hive.registerAdapter(TransactionTemplateAdapter());
+
   await Hive.openBox<Transaction>('transactions');
   await Hive.openBox<Wallet>('wallets');
+  await Hive.openBox<TransactionTemplate>('templates');
   await Hive.openBox('settings'); // Box buat simpan PIN
 
   await initializeDateFormatting('id_ID', null);
 
+  var settingsBox = await Hive.openBox('settings');
+
+  bool isNewUser = settingsBox.get('user_name') == null;
+
   runApp(
     MultiProvider(
       providers: [ChangeNotifierProvider(create: (_) => MoneyProvider())],
-      child: const MyApp(),
+      // Kirim status user ke MyApp
+      child: MyApp(isNewUser: isNewUser),
     ),
   );
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final bool isNewUser;
+  const MyApp({super.key, required this.isNewUser});
 
   @override
   Widget build(BuildContext context) {
@@ -47,6 +58,15 @@ class MyApp extends StatelessWidget {
           secondary: Color(0xFF7C4DFF),
           surface: Color(0xFF1E1E1E),
           onSurface: Colors.white,
+        ),
+
+        snackBarTheme: const SnackBarThemeData(
+          backgroundColor: Color(0xFF2C2C2C),
+          contentTextStyle: TextStyle(color: Colors.white),
+          actionTextColor: Colors.tealAccent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(10)),
+          ),
         ),
 
         // Style Text
@@ -88,7 +108,7 @@ class MyApp extends StatelessWidget {
       // --- AKHIR TEMA ---
 
       // Masuk ke AuthScreen dulu (Login)
-      home: const AuthScreen(),
+      home: isNewUser ? const WelcomeScreen() : const AuthScreen(),
     );
   }
 }

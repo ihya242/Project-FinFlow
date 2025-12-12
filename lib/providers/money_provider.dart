@@ -1,134 +1,77 @@
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
-import 'package:uuid/uuid.dart'; // Buat bikin ID acak
 import '../models/transaction.dart';
 import '../models/wallet.dart';
+import '../models/transaction_template.dart';
 
 class MoneyProvider extends ChangeNotifier {
-  // 1. Akses ke Kardus Hive (Private biar aman)
-  final Box<Transaction> _transactionBox = Hive.box<Transaction>(
-    'transactions',
-  );
-  final Box<Wallet> _walletBox = Hive.box<Wallet>('wallets');
+  late Box<Transaction> _transactionBox;
+  late Box<Wallet> _walletBox;
+  late Box<TransactionTemplate> _templateBox;
 
-  // 2. Getter: Biar UI bisa minta datanya
-  // Kita balik (reversed) biar transaksi terbaru muncul di paling atas
-  List<Transaction> get transactions =>
-      _transactionBox.values.toList().reversed.toList();
+  List<Transaction> _transactions = [];
+  List<Wallet> _wallets = [];
+  List<TransactionTemplate> _templates = [];
 
-  List<Wallet> get wallets => _walletBox.values.toList();
+  List<Transaction> get transactions => _transactions;
+  List<Wallet> get wallets => _wallets;
+  List<TransactionTemplate> get templates => _templates;
 
-  // 3. Hitung Total Saldo (Gabungan semua rekening)
-  double get totalBalance {
-    double total = 0;
-    for (var wallet in _walletBox.values) {
-      total += wallet.balance;
-    }
-    return total;
+  String _userName = "User";
+  String get userName => _userName;
+
+  MoneyProvider() {
+    _init();
   }
 
-  // --- FUNGSI-FUNGSI LOGIKA (ACTION) ---
+  void _init() async {
+    _transactionBox = Hive.box<Transaction>('transactions');
+    _walletBox = Hive.box<Wallet>('wallets');
+    _templateBox = Hive.box<TransactionTemplate>('templates');
+    var settingsBox = await Hive.openBox('settings');
+    _userName = settingsBox.get('user_name', defaultValue: 'FinFlow User');
 
-  // Tambah Dompet Baru
-  Future<void> addWallet(String name, double initialBalance) async {
-    final newWallet = Wallet(
-      id: const Uuid().v4(), // ID acak unik
-      name: name,
-      balance: initialBalance,
-    );
+    if (_templateBox.isEmpty) {
+      _seedDefaultTemplates();
+    }
 
-    await _walletBox.add(newWallet);
-    notifyListeners(); // "Oi UI! Ada dompet baru nih, update dong!"
+    _loadData();
+    _loadTemplates();
   }
 
-  // Tambah Transaksi
-  Future<void> addTransaction({
-    required String type, // 'income' atau 'expense'
-    required double amount,
-    required String category,
-    required String description,
-    required DateTime date,
-    required Wallet wallet, // Rekening mana yang dipake?
-  }) async {
-    // 1. Bikin objek transaksinya
-    final newTx = Transaction(
-      id: const Uuid().v4(),
-      type: type,
-      amount: amount,
-      category: category,
-      description: description,
-      date: date,
-      walletId: wallet.id,
-    );
-
-    // 2. Simpan ke Hive
-    await _transactionBox.add(newTx);
-
-    // 3. Update Saldo Dompetnya
-    // Kalau Income nambah, Kalau Expense ngurang
-    if (type == 'income') {
-      wallet.balance += amount;
-    } else {
-      wallet.balance -= amount;
-    }
-    // Simpan perubahan saldo dompet
-    await wallet.save();
-
-    notifyListeners(); // "Oi UI! Saldo berubah nih!"
-  }
-
-  // Hapus Transaksi (Optional, jaga-jaga kalau salah input)
-  Future<void> deleteTransaction(Transaction tx) async {
-    // Balikin dulu saldonya (Undo)
-    final wallet = _walletBox.values.firstWhere((w) => w.id == tx.walletId);
-    if (tx.type == 'income') {
-      wallet.balance -= tx.amount;
-    } else {
-      wallet.balance += tx.amount;
-    }
-    await wallet.save();
-
-    await tx.delete(); // Hapus dari Hive
+  void _loadData() {
+    _transactions = _transactionBox.values.toList();
+    _transactions.sort((a, b) => b.date.compareTo(a.date));
+    _wallets = _walletBox.values.toList();
     notifyListeners();
   }
 
-  Future<void> editTransaction(Transaction oldTx, Transaction newTx) async {
-    // 1. KEMBALIKAN Saldo Lama (Undo)
-    // Kita cari dompet lama yang dipake transaksi ini
-    final oldWallet = _walletBox.values.firstWhere(
-      (w) => w.id == oldTx.walletId,
+  void _seedDefaultTemplates() {
+    final defaults = [
+      TransactionTemplate(title: "Gaji per Month (G/M)", type: "income"),
+      TransactionTemplate(title: "Needs Monthly", type: "expense"),
+      TransactionTemplate(title: "Invest Gold", type: "expense"),
+      TransactionTemplate(title: "Safe Cash", type: "expense"),
+      TransactionTemplate(title: "Makan & Minum", type: "expense"),
+      TransactionTemplate(title: "Transport", type: "expense"),
+    ];
+    _templateBox.addAll(defaults);
+  }
+
+  void _loadTemplates() {
+    _templates = _templateBox.values.toList();
+    notifyListeners();
+  }
+
+  // --- WALLET CRUD ---
+  Future<void> addWallet(String name, double balance) async {
+    final newWallet = Wallet(
+      id: DateTime.now().toString(),
+      name: name,
+      balance: balance,
     );
-
-    if (oldTx.type == 'income') {
-      oldWallet.balance -= oldTx.amount; // Kalau tadinya masuk, kita tarik lagi
-    } else {
-      oldWallet.balance += oldTx.amount; // Kalau tadinya keluar, kita balikin
-    }
-    await oldWallet.save();
-
-    // 2. UPDATE Data Transaksinya
-    oldTx.amount = newTx.amount;
-    oldTx.description = newTx.description;
-    oldTx.type = newTx.type;
-    oldTx.date = newTx.date;
-    oldTx.walletId = newTx.walletId; // Siapa tau pindah dompet
-    oldTx.category = newTx.category;
-    await oldTx.save();
-
-    // 3. TERAPKAN Saldo Baru (Redo)
-    // Cari dompet baru (bisa jadi sama, bisa jadi beda kalau user ganti dompet)
-    final newWallet = _walletBox.values.firstWhere(
-      (w) => w.id == newTx.walletId,
-    );
-
-    if (newTx.type == 'income') {
-      newWallet.balance += newTx.amount;
-    } else {
-      newWallet.balance -= newTx.amount;
-    }
-    await newWallet.save();
-
-    notifyListeners(); // Kabarin UI buat refresh
+    await _walletBox.add(newWallet);
+    _loadData();
   }
 
   Future<void> editWallet(
@@ -138,12 +81,11 @@ class MoneyProvider extends ChangeNotifier {
   ) async {
     wallet.name = newName;
     wallet.balance = newBalance;
-    await wallet.save(); // Simpan perubahan ke Hive
+    await wallet.save();
     notifyListeners();
   }
 
   Future<void> deleteWallet(String walletId) async {
-    // Hapus SEMUA transaksi yang numpang di dompet ini (Biar bersih)
     final txToDelete = _transactionBox.values
         .where((tx) => tx.walletId == walletId)
         .toList();
@@ -151,23 +93,135 @@ class MoneyProvider extends ChangeNotifier {
       await tx.delete();
     }
 
-    // Baru hapus dompetnya
     final wallet = _walletBox.values.firstWhere((w) => w.id == walletId);
     await wallet.delete();
+    _loadData();
+  }
 
+  // --- TRANSACTION CRUD ---
+  Future<void> addTransaction({
+    required String type,
+    required double amount,
+    required String category,
+    required String description,
+    required DateTime date,
+    required Wallet wallet,
+  }) async {
+    final newTx = Transaction(
+      id: DateTime.now().toString(),
+      type: type,
+      amount: amount,
+      category: category,
+      description: description,
+      date: date,
+      walletId: wallet.id,
+    );
+
+    await _transactionBox.add(newTx);
+
+    // Update Saldo
+    if (type == 'income') {
+      wallet.balance += amount;
+    } else {
+      wallet.balance -= amount;
+    }
+    await wallet.save();
+
+    _loadData();
+  }
+
+  // --- FUNGSI YANG HILANG (SUDAH DITAMBAHKAN) 👇 ---
+
+  Future<void> deleteTransaction(Transaction tx) async {
+    // 1. Kembalikan Saldo Dompet dulu
+    // Cari dompet aslinya
+    try {
+      final wallet = _walletBox.values.firstWhere((w) => w.id == tx.walletId);
+      if (tx.type == 'income') {
+        wallet.balance -= tx.amount; // Kalau tadinya income, kita kurangi balik
+      } else {
+        wallet.balance +=
+            tx.amount; // Kalau tadinya expense, kita balikin duitnya
+      }
+      await wallet.save();
+    } catch (e) {
+      // Kalau dompet udah kehapus duluan, yaudah abaikan
+    }
+
+    // 2. Hapus Transaksi
+    await tx.delete();
+    _loadData();
+  }
+
+  Future<void> editTransaction(
+    Transaction tx, {
+    required String newType, // 'income' atau 'expense'
+    required double newAmount,
+    required String newDescription,
+    required DateTime newDate,
+  }) async {
+    // 1. Cari Dompet yang Terlibat
+    final wallet = _walletBox.values.firstWhere((w) => w.id == tx.walletId);
+
+    // 2. REVERT (Batalkan) Efek Transaksi Lama ke Saldo
+    if (tx.type == 'income') {
+      wallet.balance -= tx.amount; // Tarik balik uang masuk
+    } else {
+      wallet.balance += tx.amount; // Balikin uang keluar
+    }
+
+    // 3. UPDATE Data Transaksi
+    tx.type = newType;
+    tx.amount = newAmount;
+    tx.description = newDescription;
+    tx.date = newDate;
+    // Update Kategori teksnya juga biar rapi
+    tx.category = newType == 'income' ? 'Pemasukan' : 'Pengeluaran';
+
+    // 4. APPLY (Terapkan) Efek Transaksi Baru ke Saldo
+    if (newType == 'income') {
+      wallet.balance += newAmount;
+    } else {
+      wallet.balance -= newAmount;
+    }
+
+    // 5. Simpan Semuanya
+    await tx.save();
+    await wallet.save();
+
+    _loadData();
     notifyListeners();
+  }
+  // ------------------------------------------------
+
+  // --- TEMPLATE CRUD ---
+  Future<void> addTemplate(String title, String type) async {
+    final newTemp = TransactionTemplate(title: title, type: type);
+    await _templateBox.add(newTemp);
+    _loadTemplates();
+  }
+
+  Future<void> deleteTemplate(TransactionTemplate template) async {
+    await template.delete();
+    _loadTemplates();
   }
 
   Future<void> resetAllData() async {
-    // Hapus isi box
     await _transactionBox.clear();
     await _walletBox.clear();
-
-    // Hapus setting juga
+    await _templateBox.clear();
     var settingsBox = await Hive.openBox('settings');
     await settingsBox.clear();
-
-    // Nah, karena ini di dalam class sendiri, BOLEH panggil ini:
+    _seedDefaultTemplates();
+    _loadData();
+    _loadTemplates();
     notifyListeners();
+  }
+
+  Future<void> updateUserName(String newName) async {
+    var settingsBox = await Hive.openBox('settings');
+    await settingsBox.put('user_name', newName); // Simpan ke Hive
+    _userName = newName; // Update di Memori
+    notifyListeners(); // Kabari Home & Profile biar berubah!
   }
 }
